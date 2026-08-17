@@ -18,6 +18,7 @@ export interface PlacedStudent {
 
 export interface SurveySubmission {
   id: string;
+  round?: number; // 1회차, 2회차 등
   studentId: string; // The student who took the survey
   studentName: string;
   studentGender: Gender;
@@ -29,6 +30,29 @@ export interface SurveySubmission {
   }>;
   wishFriendIds?: string[]; // 친해지고 싶은 친구 목록 (IDs)
   notes?: string;
+}
+
+export type TeacherTabType = 'overview' | 'universe' | 'matrix' | 'history';
+export type StudentViewPerspective = 'combined' | 'self' | 'others';
+export type TrendMetricType = 'positive' | 'negative' | 'preference' | 'dispreference';
+
+export interface StudentScoreStats {
+  student: Student;
+  closenessScore: number; // 끈끈이 점수
+  positiveCount: number; // 긍정평가 받은 수 (가까운 거리)
+  negativeCount: number; // 부정평가 받은 수 (먼 거리)
+  attentionCount: number; // 관심 받은 수 (총 지목)
+  preferenceCount: number; // 선호도 (가까운 거리 + 친해지고 싶음)
+  dispreferenceCount: number; // 비선호도 (먼 거리)
+  wishCount: number; // 친해지고 싶은 친구로 지목받은 수
+}
+
+export interface RelationshipPair {
+  sourceStudent: Student;
+  targetStudent: Student;
+  sourceToTarget?: { category?: DistanceCategory; wish?: boolean; reason?: string };
+  targetToSource?: { category?: DistanceCategory; wish?: boolean; reason?: string };
+  type: 'mutual_close' | 'mutual_wish' | 'asymmetric' | 'conflict';
 }
 
 export interface CategoryMeta {
