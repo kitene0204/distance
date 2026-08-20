@@ -7,6 +7,8 @@ export interface Student {
   name: string;
   gender: Gender;
   number?: number;
+  grade?: number;
+  classNum?: number;
 }
 
 export interface PlacedStudent {
@@ -18,7 +20,7 @@ export interface PlacedStudent {
 
 export interface SurveySubmission {
   id: string;
-  round?: number; // 1회차, 2회차 등
+  round?: number; // 1학기/1회차, 2학기/2회차, 3학기/3회차, 4학기/4회차
   studentId: string; // The student who took the survey
   studentName: string;
   studentGender: Gender;
@@ -32,9 +34,40 @@ export interface SurveySubmission {
   notes?: string;
 }
 
+// Navigation Menu Tabs
+export type MainMenuType = 
+  | 'student_manager'       // 학생회원관리
+  | 'diagnostic_test'       // 교우관계진단관리 (마음거리 검사)
+  | 'relationship_report'   // 교우관계분석리포트 (화면 2)
+  | 'multiround_report'     // 다회차분석리포트 (화면 1)
+  | 'community';            // 커뮤니티
+
 export type TeacherTabType = 'overview' | 'universe' | 'matrix' | 'history';
 export type StudentViewPerspective = 'combined' | 'self' | 'others';
 export type TrendMetricType = 'positive' | 'negative' | 'preference' | 'dispreference';
+
+// Signal traffic light state for student
+export type TrafficLightStatus = 'improved' | 'stable' | 'alert'; // 🔵 감소(-2이상: 개선), ⚪ 유지(-1~+1), 🔴 증가(+2이상: 관심군)
+
+export interface AttentionStudentCardData {
+  student: Student;
+  statusType: '개선' | '유지' | '관심';
+  positiveOutgoingDelta: number; // 긍정마당발 증감
+  negativeOutgoingDelta: number; // 부정마당발 증감
+  attentionRiskDelta: number;    // 관심군 증감
+  isolatedDelta: number;        // 홀로형 증감
+  signalStatus: TrafficLightStatus;
+}
+
+// 6-axis Radar self diagnosis
+export interface SelfDiagnosisScores {
+  openness: number;      // 개방성
+  satisfaction: number;  // 만족감
+  trust: number;         // 신뢰감
+  communication: number; // 의사소통
+  understanding: number; // 이해성
+  intimacy: number;      // 친근감
+}
 
 export interface StudentScoreStats {
   student: Student;
@@ -45,6 +78,8 @@ export interface StudentScoreStats {
   preferenceCount: number; // 선호도 (가까운 거리 + 친해지고 싶음)
   dispreferenceCount: number; // 비선호도 (먼 거리)
   wishCount: number; // 친해지고 싶은 친구로 지목받은 수
+  signalStatus?: TrafficLightStatus;
+  selfScores?: SelfDiagnosisScores;
 }
 
 export interface RelationshipPair {

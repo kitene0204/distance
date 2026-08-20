@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
 import { Student, Gender } from '../types';
 import { DEFAULT_STUDENTS } from '../data/defaultRoster';
-import { Users, Plus, Trash2, RotateCcw, Check, Sparkles, AlertCircle, FileText } from 'lucide-react';
+import {
+  Users,
+  Plus,
+  Trash2,
+  RotateCcw,
+  Check,
+  Sparkles,
+  AlertCircle,
+  FileText,
+  FileSpreadsheet,
+  ArrowRight,
+  RefreshCw,
+  Info,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { fetchGoogleSheetRoster } from '../utils/googleSheetsParser';
 
 interface RosterManagerModalProps {
   isOpen: boolean;
@@ -17,15 +31,28 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
   students,
   className,
   onSaveRoster,
-  onClose
+  onClose,
 }) => {
   const [currentStudents, setCurrentStudents] = useState<Student[]>(students);
   const [currentClassName, setCurrentClassName] = useState<string>(className);
-  const [activeTab, setActiveTab] = useState<'list' | 'bulk'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'bulk' | 'sheets'>('list');
   const [bulkText, setBulkText] = useState('');
   const [newName, setNewName] = useState('');
   const [newGender, setNewGender] = useState<Gender>('남');
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Sheets state
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [isFetchingSheet, setIsFetchingSheet] = useState(false);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+
+  // Sync internal state when modal opens or props change
+  React.useEffect(() => {
+    if (isOpen) {
+      setCurrentStudents(students);
+      setCurrentClassName(className);
+    }
+  }, [isOpen, students, className]);
 
   if (!isOpen) return null;
 
@@ -37,15 +64,16 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
   // Add individual student
   const handleAddStudent = () => {
     if (!newName.trim()) return;
-    const nextNumber = currentStudents.length > 0
-      ? Math.max(...currentStudents.map((s) => s.number || 0)) + 1
-      : 1;
+    const nextNumber =
+      currentStudents.length > 0
+        ? Math.max(...currentStudents.map((s) => s.number || 0)) + 1
+        : 1;
 
     const newStudent: Student = {
       id: `std-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       number: nextNumber,
       name: newName.trim(),
-      gender: newGender
+      gender: newGender,
     };
 
     setCurrentStudents([...currentStudents, newStudent]);
@@ -72,6 +100,32 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
     setCurrentStudents(
       currentStudents.map((s) => (s.id === id ? { ...s, name } : s))
     );
+  };
+
+  // Fetch Google Sheet
+  const handleFetchGoogleSheet = async () => {
+    if (!sheetUrl.trim()) {
+      setSheetError('구글 시트 URL을 입력해주세요.');
+      return;
+    }
+    setIsFetchingSheet(true);
+    setSheetError(null);
+
+    try {
+      const result = await fetchGoogleSheetRoster(sheetUrl);
+      setCurrentStudents(result.students);
+      if (result.detectedClassName) {
+        setCurrentClassName(result.detectedClassName);
+      }
+      setActiveTab('list');
+      showToast(`구글 시트에서 ${result.students.length}명의 학생을 성공적으로 가져왔습니다.`);
+    } catch (err: any) {
+      setSheetError(
+        err.message || '구글 시트를 가져올 수 없습니다. 공유 설정을 확인해주세요.'
+      );
+    } finally {
+      setIsFetchingSheet(false);
+    }
   };
 
   // Parse bulk text into students
@@ -201,6 +255,18 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('sheets')}
+              className={`px-3.5 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+                activeTab === 'sheets'
+                  ? 'border-emerald-600 text-emerald-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              구글 시트 연동
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('bulk')}
               className={`px-3.5 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
                 activeTab === 'bulk'
@@ -209,7 +275,7 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              텍스트로 일괄 붙여넣기
+              일괄 붙여넣기
             </button>
           </div>
 
@@ -225,7 +291,7 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
-          {activeTab === 'list' ? (
+          {activeTab === 'list' && (
             <div className="space-y-4">
               {/* Add New Student Form */}
               <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-wrap items-center gap-2">
@@ -331,12 +397,70 @@ export const RosterManagerModal: React.FC<RosterManagerModalProps> = ({
 
               {currentStudents.length === 0 && (
                 <div className="text-center py-10 text-slate-400 text-xs">
-                  등록된 학생이 없습니다. 위에서 학생을 추가하거나 [일괄 붙여넣기]를 이용하세요.
+                  등록된 학생이 없습니다. 위에서 학생을 추가하거나 [구글 시트 연동]을 이용하세요.
                 </div>
               )}
             </div>
-          ) : (
-            /* Bulk Paste Tab */
+          )}
+
+          {/* Google Sheets Tab */}
+          {activeTab === 'sheets' && (
+            <div className="space-y-4">
+              <div className="bg-emerald-50 text-emerald-900 p-3.5 rounded-xl text-xs flex items-start gap-2.5 border border-emerald-200">
+                <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold">구글 스프레드시트 주소(URL)로 명렬표 가져오기</p>
+                  <p className="text-[11px] text-emerald-800 leading-relaxed">
+                    구글 시트 우측 상단 <strong>[공유]</strong> 버튼에서 <span className="underline font-semibold">"링크가 있는 모든 사용자(뷰어)"</span>로 설정된 주소를 입력하세요.
+                    A열: 번호, B열: 이름, C열: 성별(남/여) 열을 자동 인식합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  구글 시트 URL 주소
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    value={sheetUrl}
+                    onChange={(e) => setSheetUrl(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    disabled={isFetchingSheet}
+                    onClick={handleFetchGoogleSheet}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  >
+                    {isFetchingSheet ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>불러오는 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>시트 가져오기</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {sheetError && (
+                <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-lg border border-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{sheetError}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Bulk Paste Tab */}
+          {activeTab === 'bulk' && (
             <div className="space-y-3">
               <div className="bg-slate-50 text-slate-700 p-3 rounded-lg text-xs flex items-start gap-2 border border-slate-200">
                 <AlertCircle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />

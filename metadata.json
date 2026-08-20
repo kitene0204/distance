@@ -1,6 +1,6 @@
 {
   "name": "우리반 마음거리 검사",
-  "description": "학급 학생들의 교우 관계 및 마음의 거리를 확인하고 이유를 기록하는 검사 도구",
+  "description": "우리반 관계 읽기 AI기반 교우관계 분석 서비스 및 마음거리 검사 시스템",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
